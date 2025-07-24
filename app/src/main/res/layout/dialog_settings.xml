@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- Optional drag handle for modal settings -->
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Settings"
+        android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/hostManualEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Host"
+        android:layout_marginTop="16dp" />
+
+    <RadioGroup
+        android:id="@+id/apiVersionRadioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="horizontal" />
+
+    <RadioGroup
+        android:id="@+id/apiKeyRadioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" />
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/apiKeyManualEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="API Key"
+        android:layout_marginTop="16dp" />
+
+    <RadioGroup
+        android:id="@+id/modelRadioGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal" />
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/modelManualEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Model"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/vadValue"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="VAD Sensitivity"
+        android:layout_marginTop="16dp" />
+
+    <SeekBar
+        android:id="@+id/vadSensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/debugOverlaySwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Enable Debug Overlay" />
+
+    <Button
+        android:id="@+id/shareLogBtn"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Share Logs" />
+
+    <Button
+        android:id="@+id/clearLogBtn"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Clear Logs" />
+
+    <Button
+        android:id="@+id/forceConnectBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Force Connect" />
+
+    <Button
+        android:id="@+id/saveSettingsBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Save Settings" />
+
+</LinearLayout>

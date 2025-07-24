@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- A handle for visual indication -->
+    <com.google.android.material.bottomsheet.BottomSheetDragHandleView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Settings"
+        android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
+
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/autoPlaybackSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Auto-play Translations" />
+
+    <Button
+        android:id="@+id/requestPermissionBtn"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Grant Microphone Permission"
+        android:visibility="gone" /> <!-- Initially hidden -->
+<Button
+		android:id="@+id/sendFeedbackBtn"
+		style="@style/Widget.Material3.Button.OutlinedButton"
+		android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="Send Feedback"
+        android:visibility="gone" /> <!-- Initially hidden -->
+    <Button
+        android:id="@+id/closeBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Close" />
+
+</LinearLayout>
