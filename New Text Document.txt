@@ -1,4 +1,1 @@
-Cloned from ANDROID _ TUL
-WORKING IN VS CODE
-HAS ERRORS; 
-NEW MOVE TO PAVLO
+PulledfrBWC-- Delted everythign moved livegemi to app directory.txt

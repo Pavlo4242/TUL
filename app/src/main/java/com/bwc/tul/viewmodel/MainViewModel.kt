@@ -3,31 +3,34 @@ package com.bwc.tul.viewmodel
 import android.app.Application
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bwc.tul.audio.AudioHandler
 import com.bwc.tul.audio.AudioPlayer
+import com.bwc.tul.data.AppDatabase
 import com.bwc.tul.data.ServerResponse
 import com.bwc.tul.data.UIState
+import com.bwc.tul.ui.components.Constant
+import com.bwc.tul.ui.dialog.DevSettingsListener
+import com.bwc.tul.ui.view.TranslationItem
+import com.bwc.tul.util.DebugLogger
 import com.bwc.tul.websocket.WebSocketClient
 import com.bwc.tul.websocket.WebSocketConfig
-import com.bwc.tul.ui.view.TranslationItem
-import com.bwc.tul.ui.components.Constant
-import com.bwc.tul.util.DebugLogger
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class MainViewModel(
     application: Application,
     private val audioHandler: AudioHandler
-) : AndroidViewModel(application), WebSocketClient.WebSocketListener {
+) : AndroidViewModel(application), WebSocketClient.WebSocketListener, DevSettingsListener {
 
     private val _uiState = MutableStateFlow(UIState())
     val uiState = _uiState.asStateFlow()
@@ -37,12 +40,39 @@ class MainViewModel(
 
     private var webSocketClient: WebSocketClient? = null
     private val gson = Gson()
-    private val logger = DebugLogger
+
     private var audioPlayer: AudioPlayer? = null
     private var sessionHandle: String? = null
 
     private val prefs = application.getSharedPreferences(
         "BwctransPrefs", Context.MODE_PRIVATE)
+
+    init {
+        val logDao = AppDatabase.getDatabase(application).logDao()
+
+    }
+
+    override fun onSettingsSaved() {
+        _uiState.update { it.copy(showDevSettings = false) }
+        reloadConfiguration()
+        viewModelScope.launch {
+            _events.emit(ViewEvent.ShowToast("Dev Settings Saved. Please reconnect."))
+        }
+    }
+
+    override fun onShareLog() {
+        handleEvent(UserEvent.ShareLogRequested)
+    }
+
+    override fun onClearLog() {
+        handleEvent(UserEvent.ClearLogRequested)
+    }
+
+    override fun onExportLogsComplete(file: File) {
+        viewModelScope.launch {
+            _events.emit(ViewEvent.ExportLogsCompleted)
+        }
+    }
 
     fun handleEvent(event: UserEvent) {
         viewModelScope.launch {
@@ -50,21 +80,23 @@ class MainViewModel(
                 UserEvent.MicClicked -> toggleRecording()
                 UserEvent.ConnectClicked -> connectWebSocket()
                 UserEvent.DisconnectClicked -> disconnectWebSocket()
-                UserEvent.SettingsSaved -> {
+                is UserEvent.SettingsSaved -> {
+                    with(prefs.edit()) {
+                        putString("api_key", event.apiKey)
+                        putString("source_lang", event.sourceLang)
+                        putString("target_lang", event.targetLang)
+                        apply()
+                    }
+                    _uiState.update { it.copy(showUserSettings = false) }
                     reloadConfiguration()
-                    _events.emit(ViewEvent.ShowToast(
-                        "Settings Saved. Please reconnect."))
+                    _events.emit(ViewEvent.ShowToast("Settings Saved. Please reconnect."))
                 }
-                UserEvent.RequestPermission ->
-                    _events.emit(ViewEvent.ShowUserSettings)
                 UserEvent.ShareLogRequested -> handleShareLog()
                 UserEvent.ClearLogRequested -> clearDebugLog()
-                UserEvent.UserSettingsClicked ->
-                    _events.emit(ViewEvent.ShowUserSettings)
-                UserEvent.DevSettingsClicked ->
-                    _events.emit(ViewEvent.ShowDevSettings)
+                UserEvent.ShowUserSettings -> _uiState.update { it.copy(showUserSettings = true) }
+                UserEvent.ShowDevSettings -> _uiState.update { it.copy(showDevSettings = true) }
+                UserEvent.DismissDialog -> _uiState.update { it.copy(showUserSettings = false, showDevSettings = false) }
                 UserEvent.ExportLogsCompleted ->  _events.emit(ViewEvent.ShowToast("Web Socket Logs Exported"))
-
             }
         }
     }
@@ -75,11 +107,25 @@ class MainViewModel(
             return
         }
         logStatus("Connecting...")
-        audioPlayer?.release()
-        audioPlayer = AudioPlayer()
-        val config = buildWebSocketConfig()
-        webSocketClient = WebSocketClient(config, this, getApplication())
-        webSocketClient?.connect()
+
+        viewModelScope.launch {
+            val client = try {
+                withContext(Dispatchers.IO) {
+                    audioPlayer?.release()
+                    audioPlayer = AudioPlayer()
+                    val config = buildWebSocketConfig()
+                    WebSocketClient(config, this@MainViewModel, getApplication())
+                }
+            } catch (e: Exception) {
+                logError("Connection initialization failed: ${e.message}")
+                null
+            }
+
+            client?.let {
+                webSocketClient = it
+                it.connect()
+            }
+        }
     }
 
     private fun disconnectWebSocket() {
@@ -139,8 +185,10 @@ class MainViewModel(
     }
 
     override fun onMessage(text: String) {
-        logger.log("IN: $text")
-        _uiState.update { it.copy(debugLog = logger.getLog()) }
+        // Corrected call to logger.log
+
+        DebugLogger.log("INFO", "WebSocket", "IN: $text")
+        // Removed updating the on-screen debug log, as it's now in the database
         try {
             val response = gson.fromJson(text, ServerResponse::class.java)
 
@@ -202,13 +250,7 @@ class MainViewModel(
     private fun addOrUpdateTranslation(text: String, isUser: Boolean) {
         _uiState.update { currentState ->
             val newItem = TranslationItem(text = text, isUser = isUser)
-            val newTranslations = currentState.translations.toMutableList().apply {
-                if (isNotEmpty() && first().isUser == isUser) {
-                    set(0, newItem)
-                } else {
-                    add(0, newItem)
-                }
-            }
+            val newTranslations = listOf(newItem) + currentState.translations
             currentState.copy(translations = newTranslations)
         }
     }
@@ -221,28 +263,29 @@ class MainViewModel(
     }
 
     private fun handleShareLog() = viewModelScope.launch {
-        logger.getLogFileUri(getApplication())?.let { uri ->
+        DebugLogger.getLogFileUri(getApplication())?.let { uri ->
             _events.emit(ViewEvent.ShareLogFile(uri))
         } ?: _events.emit(ViewEvent.ShowToast("Log file not available."))
     }
 
-    private fun clearDebugLog() = viewModelScope.launch {
-        logger.clear()
+    private suspend fun clearDebugLog() {
+        DebugLogger.clear()
+        // Removed on-screen log clearing, as it's deprecated
         _uiState.update { it.copy(debugLog = "") }
-        _events.emit(ViewEvent.ShowToast("On-screen log cleared."))
+        _events.emit(ViewEvent.ShowToast("Debug log database cleared."))
     }
 
     private fun logStatus(message: String) {
-        Log.i("MainViewModel", message)
-        logger.log(message)
-        _uiState.update { it.copy(statusText = message, debugLog = logger.getLog()) }
+        // Corrected call
+        DebugLogger.log("INFO", "MainViewModel", message)
+        _uiState.update { it.copy(statusText = message) }
     }
 
     private fun logError(message: String) {
-        Log.e("MainViewModel", message)
-        logger.log("ERROR: $message")
+        // Corrected call
+        DebugLogger.log("ERROR", "MainViewModel", message)
         viewModelScope.launch { _events.emit(ViewEvent.ShowError(message)) }
-        _uiState.update { it.copy(statusText = message, debugLog = logger.getLog()) }
+        _uiState.update { it.copy(statusText = message) }
     }
 
     private fun buildWebSocketConfig(): WebSocketConfig {
@@ -250,7 +293,7 @@ class MainViewModel(
             host = prefs.getString("api_host",
                 "generativelanguage.googleapis.com")!!,
             modelName = prefs.getString("selected_model",
-                "gemini-2.5-flash-preview-native-audio-dialog")!!,
+                "gemini-1.5-flash-preview-native-audio-dialog")!!,
             vadSilenceMs = prefs.getInt("vad_sensitivity_ms", 800),
             apiVersion = prefs.getString("api_version", "v1alpha")!!,
             apiKey = prefs.getString("api_key", "")!!,
@@ -270,21 +313,19 @@ class MainViewModel(
         data class ShowToast(val message: String) : ViewEvent()
         data class ShowError(val message: String) : ViewEvent()
         data class ShareLogFile(val uri: Uri) : ViewEvent()
-        object ShowUserSettings : ViewEvent()
-        object ShowDevSettings : ViewEvent()
-        object ExportLogsCompleted: ViewEvent() //Added
+        object ExportLogsCompleted: ViewEvent()
     }
 
     sealed class UserEvent {
         object MicClicked : UserEvent()
         object ConnectClicked : UserEvent()
         object DisconnectClicked : UserEvent()
-        object SettingsSaved : UserEvent()
-        object RequestPermission : UserEvent()
+        data class SettingsSaved(val apiKey: String, val sourceLang: String, val targetLang: String) : UserEvent()
         object ShareLogRequested : UserEvent()
         object ClearLogRequested : UserEvent()
-        object UserSettingsClicked : UserEvent()
-        object DevSettingsClicked : UserEvent()
-        object ExportLogsCompleted: UserEvent()  //Added
+        object ShowUserSettings : UserEvent()
+        object ShowDevSettings : UserEvent()
+        object DismissDialog : UserEvent()
+        object ExportLogsCompleted: UserEvent()
     }
 }

@@ -25,7 +25,7 @@ tasks.withType<JavaCompile> {
 }
 android {
     namespace = "com.bwc.tul"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.bwc.tul"
@@ -112,7 +112,8 @@ android {
         }
         */
         dependencies{
-val composeBom = platform("androidx.compose:compose-bom:2024.05.00")
+implementation(libs.androidx.ui.text.google.fonts)
+            val composeBom = platform("androidx.compose:compose-bom:2024.05.00")
 implementation(composeBom)
 androidTestImplementation(composeBom)
 
@@ -143,6 +144,10 @@ implementation("com.google.code.gson:gson:2.10.1")
 implementation("androidx.room:room-runtime:2.6.1")
 implementation("androidx.room:room-ktx:2.6.1")
 kapt("androidx.room:room-compiler:2.6.1")
+
+debugImplementation("com.github.amitshekhariitbhu.Android-Debug-Database:debug-db:1.0.7")
+            debugImplementation("com.guolindev.glance:glance:1.1.0")
+
 
 // Coroutines
 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
